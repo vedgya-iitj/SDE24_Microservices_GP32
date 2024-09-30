@@ -1,0 +1,40 @@
+
+version: '3.8'
+
+services:
+  frontendsimple:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - simplebackend
+
+
+  simplebackend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5005:5005"
+    environment:
+      - MONGODB_URI=mongodb://mongosimple:27017/simpleblog
+      - NODE_ENV=production
+    depends_on:
+      - mongosimple
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+
+
+  mongosimple:
+    image: mongo:latest
+    ports:
+      - "27020:27017"
+    volumes:
+      - mongosimple_data:/data/db
+
+
+volumes:
+  mongosimple_data:
