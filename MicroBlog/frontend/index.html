@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MicroBlog</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            margin-top: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: auto;
+        }
+        h2 {
+            margin-top: 20px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 5px;
+        }
+        .post-card {
+            margin-bottom: 20px; 
+            padding: 15px; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+        }
+        .comment-card {
+            margin-left: 20px;
+            padding: 10px; 
+            border-left: 2px solid #007bff; 
+        }
+        #usernameDisplay {
+            font-weight: bold; 
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-center">Welcome to MicroBlog</h1>
+
+    <div id="navigation" class="my-4 text-center">
+        <button class="btn btn-primary" onclick="showSection('register')">Register</button>
+        <button class="btn btn-success" onclick="showSection('login')">Login</button>
+    </div>
+
+    <!-- Landing Page After Login -->
+    <div id="landingPage" style="display:none;">
+        <h2 class="text-center">Welcome, <span id="usernameDisplay"></span>!</h2>
+        
+        <h2>All Posts</h2>
+        <div id="postsContainer"></div> <!-- Display all posts here -->
+
+        <h2>Create New Post</h2>
+        <form id="postForm">
+            <textarea class="form-control mb-2" id="postContent" placeholder="Write your post here..." rows="4" required></textarea>
+            <button type="submit" class="btn btn-danger">Create Post</button>
+        </form>
+    </div>
+
+    <!-- Registration Section -->
+    <div id="register" style="display:none;">
+        <h2>Register</h2>
+        <form id="registerForm">
+            <input type="text" class="form-control mb-2" id="username" placeholder="Username" required />
+            <input type="email" class="form-control mb-2" id="email" placeholder="Email" required />
+            <input type="password" class="form-control mb-2" id="password" placeholder="Password" required />
+            <button type="submit" class="btn btn-primary">Register</button>
+        </form>
+    </div>
+
+    <!-- Login Section -->
+    <div id="login" style="display:none;">
+        <h2>Login</h2>
+        <form id="loginForm">
+            <input type="text" class="form-control mb-2" id="loginUsername" placeholder="Username" required />
+            <input type="password" class="form-control mb-2" id="loginPassword" placeholder="Password" required />
+            <button type="submit" class="btn btn-success">Login</button>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    const apiUrlUsers = 'http://localhost:5001/api/users'; // User Service base URL
+    const apiUrlPosts = 'http://localhost:5002/api/posts'; // Post Service base URL
+    const apiUrlComments = 'http://localhost:5003/api/comments'; // Comment Service base URL
+
+    let loggedInUserId = ''; // Variable to hold logged-in user ID
+    let loggedInUsername = ''; // Variable to hold logged-in username
+
+    function showSection(section) {
+        // Hide all sections initially
+        document.getElementById('register').style.display = 'none';
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('landingPage').style.display = 'none';
+        
+
+        if (section === 'register') {
+            document.getElementById('register').style.display = 'block';
+        } else if (section === 'login') {
+            document.getElementById('login').style.display = 'block';
+        } else if (section === 'landingPage') {
+            document.getElementById('landingPage').style.display = 'block';
+            document.getElementById('usernameDisplay').innerText = loggedInUsername; // Display logged-in user's name
+            fetchPosts(); // Fetch posts when landing page is shown
+        }
+    }
+
+    // Register User
+    document.getElementById('registerForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        /**
+         * The response object obtained after making a POST request to the user registration endpoint.
+         *
+         * The request sends user registration details (username, email, and password) to the specified API URL.
+         *
+         * @type {Promise<Response>}
+         * @see fetch
+         */
+        const response = await fetch(`${apiUrlUsers}/register`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, email, password })
+        });
+
+        const data = await response.json();
+        alert(data.message || "Registration successful!");
+        document.getElementById('registerForm').reset(); // Clear form
+        showSection('login'); // Navigate to login section
+    });
+
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('loginUsername').value;
+        const password = document.getElementById('loginPassword').value;
+
+        /**
+         * The `response` variable holds the result of making a POST request to the user login endpoint.
+         *
+         * This request sends user credentials (username and password) to the server to authenticate the user.
+         *
+         * The server response, stored in `response`, is handled asynchronously.
+         *
+         * @type {Promise<Response>}
+         */
+        const response = await fetch(`${apiUrlUsers}/login`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
+        });
+
+        /**
+         * Represents the data extracted from the response of an HTTP request.
+         * The `data` variable holds the JSON-parsed content of the response.
+         *
+         * @type {Object} data - The parsed JSON object.
+         * @throws {SyntaxError} If the response is not valid JSON.
+         *
+         * @async
+         * @function
+         * @returns {Promise<Object>} A promise that resolves to a JSON object.
+         */
+        const data = await response.json();
+        if (data.message === "Login successful") {
+            alert("Login successful!");
+            loggedInUserId = data.user._id; // Store user ID
+            loggedInUsername = data.user.username; // Store username
+            showSection('landingPage'); // Show landing page after login
+            document.getElementById('loginForm').reset(); // Clear login form
+        } else {
+            alert(data.error || "Login failed");
+        }
+    });
+
+
+    document.getElementById('postForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const content = document.getElementById('postContent').value;
+
+        /**
+         * Represents the HTTP response received from making a POST request to the specified API URL for posts.
+         *
+         * The fetch function sends a POST request to the given `apiUrlPosts` endpoint with the following options:
+         * - method: 'POST'
+         * - headers: Sets the 'Content-Type' to 'application/json'
+         * - body: A JSON stringified object containing the user's ID and post content
+         *
+         * The response contains information about the status and the result of the HTTP request.
+         *
+         * @type {Response}
+         */
+        const response = await fetch(apiUrlPosts, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId: loggedInUserId, content }) // Pass the user ID and post content
+        });
+
+        const data = await response.json();
+        alert(data.message || "Post created!");
+        document.getElementById('postContent').value = ''; // Clear input
+        fetchPosts(); // Refresh the posts list after creating a new one
+    });
+
+    // Fetch all posts
+    /**
+     * Fetches posts from the specified API, processes the response to extract post data,
+     * and dynamically updates the inner HTML of the 'postsContainer' element to display the posts.
+     *
+     * @return {Promise<void>} A promise that resolves when the posts have been successfully
+     * fetched and displayed in the 'postsContainer' element.
+     */
+    async function fetchPosts() {
+        const response = await fetch(apiUrlPosts);
+        const posts = await response.json();
+        const postsContainer = document.getElementById('postsContainer');
+        postsContainer.innerHTML = ''; // Clear existing posts
+
+        posts.forEach(post => {
+            const postElement = document.createElement('div');
+            postElement.className = 'post-card';
+            postElement.innerHTML = `
+                <h5>${post.content}</h5>
+                <p>Posted by User ID: ${post.userId} on ${new Date(post.createdAt).toLocaleString()}</p>
+                <button class="btn btn-link" onclick="showComments('${post._id}')">View Comments</button>
+                <button class="btn btn-secondary btn-sm" onclick="addComment('${post._id}')">Add Comment</button>
+                <div id="comments-${post._id}" style="display:none;"></div> <!-- Container for comments -->
+                <hr/>
+            `;
+            postsContainer.appendChild(postElement);
+        });
+    }
+
+    // Show comments for a post
+    /**
+     * Fetches and displays comments for a given post. If the comments are already displayed, it hides them.
+     *
+     * @param {string|number} postId - The ID of the post for which to show comments.
+     * @return {Promise<void>} - A promise that resolves when comments are fetched and displayed or hidden.
+     */
+    async function showComments(postId) {
+        const commentsContainer = document.getElementById(`comments-${postId}`);
+        if (commentsContainer.style.display === 'block') {
+            commentsContainer.style.display = 'none'; // Hide if already shown
+            return; // Exit if comments are already shown
+        }
+
+        const response = await fetch(`${apiUrlComments}/${postId}`);
+        const comments = await response.json();
+        commentsContainer.innerHTML = ''; // Clear old comments
+
+        comments.forEach(comment => {
+            const commentElement = document.createElement('div');
+            commentElement.className = 'comment-card';
+            commentElement.innerHTML = `
+                <p><strong>User ID ${comment.userId}:</strong> ${comment.commentText}</p>
+                <p class="text-muted">Commented on ${new Date(comment.createdAt).toLocaleString()}</p>
+            `;
+            commentsContainer.appendChild(commentElement);
+        });
+
+        commentsContainer.style.display = 'block'; // Show comments
+    }
+
+    /**
+     * Adds a comment to a specified post.
+     *
+     * @param {string} postId - The ID of the post to which the comment is to be added.
+     * @return {Promise<void>} - A promise that resolves once the comment is added and the posts are refreshed.
+     */
+    async function addComment(postId) {
+        const commentText = prompt("Enter your comment:"); // Prompt for comment input
+        if (!commentText) return; // Exit if no comment is provided
+
+        const userId = loggedInUserId; // Use the actual logged-in user ID
+
+        const response = await fetch(`${apiUrlComments}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ postId, userId, commentText })
+        });
+
+        const data = await response.json();
+        alert(data.message || "Comment added!");
+        fetchPosts(); // Refresh posts to show the new comment
+    }
+
+    // Initial fetch of posts when the page loads
+    fetchPosts();
+</script>
+
+</body>
+</html>

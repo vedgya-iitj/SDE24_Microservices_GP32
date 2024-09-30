@@ -1,0 +1,84 @@
+
+version: '3.8'
+
+services:
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - userservice
+      - postservice
+      - commentservice
+
+  userservice:
+    build:
+      context: ./userservice
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    environment:
+      - MONGODB_URI_USERS=mongodb://mongoUser:27017/users
+      - NODE_ENV=production
+    depends_on:
+      - mongoUser
+    volumes:
+      - ./userservice:/usr/src/app
+      - /usr/src/app/node_modules
+
+  postservice:
+    build:
+      context: ./postservice
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5002"
+    environment:
+      - MONGODB_URI_POSTS=mongodb://mongoPost:27017/posts
+      - NODE_ENV=production
+    depends_on:
+      - mongoPost
+    volumes:
+      - ./postservice:/usr/src/app
+      - /usr/src/app/node_modules
+  commentservice:
+    build:
+      context: ./commentservice
+      dockerfile: Dockerfile
+    ports:
+      - "5003:5003"
+    environment:
+      - MONGODB_URI_COMMENTS=mongodb://mongoComment:27017/comments
+      - NODE_ENV=production
+    depends_on:
+      - mongoComment
+    volumes:
+      - ./commentservice:/usr/src/app
+      - /usr/src/app/node_modules
+
+  mongoUser:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongouser_data:/data/db
+
+  mongoPost:
+    image: mongo:latest
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongopost_data:/data/db
+
+  mongoComment:
+    image: mongo:latest
+    ports:
+      - "27019:27017"
+    volumes:
+      - mongocomment_data:/data/db
+
+volumes:
+  mongouser_data:
+  mongopost_data:
+  mongocomment_data:
