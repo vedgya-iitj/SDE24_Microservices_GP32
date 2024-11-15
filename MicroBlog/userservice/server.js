@@ -1,7 +1,7 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 const cors = require('cors');
+const mysql = require('mysql2/promise');
 require('dotenv').config();
 
 const app = express();
@@ -10,30 +10,55 @@ const PORT = process.env.PORT || 5001;
 app.use(cors());
 app.use(bodyParser.json());
 
+// MySQL Connection Pool
+const pool = mysql.createPool({
+    host: process.env.MYSQL_HOST || 'mysql_users', // Updated host name
+    user: process.env.MYSQL_USER || 'microblog',
+    password: process.env.MYSQL_PASSWORD || 'userservice',
+    database: process.env.MYSQL_DATABASE || 'userservice',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
 
-mongoose.connect(process.env.MONGODB_URI_USERS, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log("User MongoDB connected"))
-    .catch(err => console.log(err));
+const connectWithRetry = async () => {
+    let retries = 5;
+    while (retries) {
+        try {
+            const connection = await pool.getConnection();
+            console.log("Successfully connected to MySQL database");
+            connection.release();
+            return;
+        } catch (err) {
+            console.error("Error connecting to MySQL database:", {
+                host: process.env.MYSQL_HOST,
+                user: process.env.MYSQL_USER,
+                database: process.env.MYSQL_DATABASE,
+                pass: process.env.MYSQL_PASSWORD,
+                rootpass: process.env.MYSQL_ROOT_PASSWORD,
+                error: err.message,
+                retriesLeft: retries - 1
+            });
+            retries -= 1;
+            // Wait for 5 seconds before retrying
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+    }
+};
+
+connectWithRetry();
+
+// Test database connection
+pool.getConnection()
+    .then(connection => {
+        console.log("Successfully connected to MySQL database");
+        connection.release();
+    })
+    .catch(err => {
+        console.error("Error connecting to MySQL database:", err);
+    });
 
 // Import Routes
-/**
- * The `userRoutes` module.
- *
- * This module handles routing for user-related operations, such as user
- * registration, authentication, profile management, and other user-specific
- * functionalities. It exports the user routing configurations that are
- * implemented in `./routes/userRoutes`.
- *
- * Typical routes managed by this module might include:
- * - User registration
- * - User login and authentication
- * - Password reset and recovery
- * - User account details and profile management
- *
- * This module connects these routes to the appropriate controllers and
- * middleware functions that handle the various user-related requests and
- * responses.
- */
 const userRoutes = require('./routes/userRoutes');
 app.use('/api/users', userRoutes);
 
@@ -44,4 +69,5 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`User Service running on port ${PORT}`);
+    console.log(`DB:${process.env.MYSQL_HOST} User ${process.env.MYSQL_USER} database ${process.env.MYSQL_PASSWORD}`);
 });

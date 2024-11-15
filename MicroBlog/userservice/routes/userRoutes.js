@@ -4,12 +4,21 @@ const User = require('../models/User');
 
 
 router.post('/register', async (req, res) => {
-    const newUser = new User(req.body);
+    // const newUser = new User(req.body);
+    const { username, password, email } = req.body;
     try {
-        const savedUser = await newUser.save();
-        res.status(201).send(savedUser);
-    } catch (error) {
-        res.status(500).send(error);
+        const userData = { username, password: password, email };
+        console.log(userData);
+        // const savedUser = await newUser.create();
+        const newUserId = await User.create(userData);
+        console.log(newUserId);
+        res.status(201).send({ message: 'User registered successfully', userId: newUserId });
+    }  catch (error) {
+        if (error.code === 'ER_DUP_ENTRY') { // MySQL error for duplicate entry
+            res.status(409).send({ error: 'Username or email already exists' });
+        } else {
+            res.status(500).send({ error: 'Registration failed. Try again.' });
+        }
     }
 });
 
@@ -17,7 +26,11 @@ router.post('/register', async (req, res) => {
 router.post('/login', async (req, res) => {
     const { username, password } = req.body;
     try {
-        const user = await User.findOne({ username });
+        console.log(password);
+        console.log(username);
+
+        const user = await User.findByUsername({ username });
+        console.log('Users:', user);
         if (!user) {
             return res.status(404).send('User not found');
         }
